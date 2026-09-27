@@ -2,6 +2,9 @@
 
 ## 1.0.0 (2026-09-27)
 
+### Highlights
+
+This release fixes a runtime resolution issue with the "polish" action so the project's first release can run successfully. It is a focused bugfix to ensure the release workflow proceeds.
 
 ### Bug Fixes
 
