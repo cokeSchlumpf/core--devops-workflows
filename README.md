@@ -144,14 +144,6 @@ repository's GitHub **Settings**.
 - [ ] **Secrets and variables → Actions:** repository secret `OPENAI_API_KEY` (optional, enables the LLM polish of
   the Release PR notes). Without it, the polish job is skipped.
 
-### Requirements for this repository
-
-- It must be **public**. For a private repository, other repositories can only call its workflows if *Settings →
-  Actions → General → Access* allows it, and only repositories owned by the same user or organization.
-- The `versions/<major>` branch that callers reference must exist. It is created by merging the Release PR of the
-  first release of that major version. Until then, calling workflows fail with *unable to find version*.
-- Its own Pages setting isn't needed, as it has no documentation site.
-
 ## Development
 
 ```bash
