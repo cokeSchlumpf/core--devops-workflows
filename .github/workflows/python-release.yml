@@ -2,6 +2,10 @@ name: Python Release
 
 # Reusable workflow: runs release-please, moves `versions/<major>` to each new release and optionally polishes the
 # notes of the Release PR with an LLM. The caller must grant `contents`, `issues` and `pull-requests: write`.
+#
+# The polish action is checked out from this repository at `workflows-ref` and used via a local path. Local actions are
+# resolved when the step runs, while `owner/repo@ref` actions are resolved when the job starts, even for skipped steps.
+# So a missing ref (e.g. `versions/1` before the first release of this repository) can't break the release itself.
 on:
   workflow_call:
     inputs:
@@ -18,6 +22,10 @@ on:
         description: OpenAI model used to polish the release notes.
         type: string
         default: gpt-5-mini
+      workflows-ref:
+        description: Ref of cokeSchlumpf/core--devops-workflows to load the polish action from.
+        type: string
+        default: versions/1
     secrets:
       OPENAI_API_KEY:
         description: Optional. Enables polishing the release notes of the Release PR.
@@ -40,6 +48,8 @@ jobs:
     outputs:
       release_created: ${{ steps.release.outputs.release_created }}
       tag_name: ${{ steps.release.outputs.tag_name }}
+      pr_number: ${{ steps.release-pr.outputs.number }}
+      pr_branch: ${{ steps.release-pr.outputs.branch }}
     steps:
       # Creates/updates the Release PR, or creates tag and GitHub Release once the Release PR is merged.
       - id: release
@@ -61,7 +71,6 @@ jobs:
           MAJOR: ${{ steps.release.outputs.major }}
         run: git push origin "${SHA}:refs/heads/versions/${MAJOR}"
 
-      # Optional: polish the release notes of the Release PR with an LLM. Never blocks a release.
       # The `pr` output is only set when a Release PR was created or updated, so it's read here with jq instead of
       # fromJSON() in expressions: step `env` is evaluated before `if`, and fromJSON('') fails the whole workflow.
       - id: release-pr
@@ -74,18 +83,29 @@ jobs:
           echo "number=$(jq -r .number <<< "$PR_JSON")" >> "$GITHUB_OUTPUT"
           echo "branch=$(jq -r .headBranchName <<< "$PR_JSON")" >> "$GITHUB_OUTPUT"
 
-      - if: ${{ steps.release-pr.outputs.branch != '' }}
-        continue-on-error: true
-        uses: actions/checkout@v7
+  # Optional: polish the release notes of the Release PR with an LLM. Never blocks a release.
+  polish:
+    needs: release
+    if: ${{ needs.release.outputs.pr_branch != '' }}
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v7
         with:
-          ref: ${{ steps.release-pr.outputs.branch }}
+          ref: ${{ needs.release.outputs.pr_branch }}
 
-      # Keep the ref in sync with the major version of this repository.
-      - if: ${{ steps.release-pr.outputs.branch != '' }}
-        continue-on-error: true
-        uses: cokeSchlumpf/core--devops-workflows/.github/actions/polish-changelog@versions/1
+      - uses: actions/checkout@v7
         with:
-          pr-number: ${{ steps.release-pr.outputs.number }}
+          repository: cokeSchlumpf/core--devops-workflows
+          ref: ${{ inputs.workflows-ref }}
+          path: .core-devops-workflows
+
+      - uses: ./.core-devops-workflows/.github/actions/polish-changelog
+        with:
+          pr-number: ${{ needs.release.outputs.pr_number }}
           openai-api-key: ${{ secrets.OPENAI_API_KEY }}
           model: ${{ inputs.openai-model }}
           changelog-path: ${{ inputs.changelog-path }}

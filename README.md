@@ -17,8 +17,8 @@ Reference the workflows via their major version branch, e.g. `@versions/1`. It a
 release, so fixes arrive automatically while breaking changes need a new major version. Pin a tag (e.g. `@v1.0.0`) for
 fully reproducible builds.
 
-`python-release.yml` references the polish action via `@versions/1`. Update that ref when releasing a new major
-version.
+`python-release.yml` loads the polish action from this repository at its `workflows-ref` input (default `versions/1`).
+Update that default when releasing a new major version.
 
 ## Usage
 
@@ -119,22 +119,38 @@ jobs:
 | | `site-dir` | `site` |
 | `python-release.yml` | `config-file`, `manifest-file` | `release-please-config.json`, `.release-please-manifest.json` |
 | | `changelog-path`, `openai-model` | `CHANGELOG.md`, `gpt-5-mini` |
+| | `workflows-ref` (ref of this repository to load the polish action from) | `versions/1` |
 | | secret `OPENAI_API_KEY` (optional, enables the LLM polish) | |
 | `conventional-pr-title.yml` | `types` (one per line) | `feat`, `fix`, `perf`, `deps`, `revert`, `docs`, `refactor`, `test`, `build`, `ci`, `chore`, `style` |
 
-### Repository settings
+### Setting up a repository
 
-The workflows rely on these settings in each calling repository:
+Checklist for every repository that calls these workflows. Apart from the files, everything is configured in the
+repository's GitHub **Settings**.
 
-- **Settings → General → Pull Requests:** only *Allow squash merging* enabled, with *Default commit message* set to
+- [ ] **Project files:** the Poe tasks `check` and `docs-build`, `release-please-config.json`,
+  `.release-please-manifest.json`, `CHANGELOG.md` and the caller workflows from [Usage](#usage).
+- [ ] **General → Pull Requests:** only *Allow squash merging* enabled, with *Default commit message* set to
   **Pull request title and description**. Otherwise single-commit PRs use the commit message instead of the PR title,
-  and `BREAKING CHANGE:` / `Release-As:` lines in the description don't reach `main`.
-- **Settings → Actions → General → Workflow permissions:** *Allow GitHub Actions to create and approve pull requests*
+  and `BREAKING CHANGE:` / `Release-As:` lines in the description don't reach `main`. Recommended: *Automatically delete
+  head branches*.
+- [ ] **Actions → General → Actions permissions:** if actions are restricted, allow `actions/*`,
+  `googleapis/release-please-action`, `amannn/action-semantic-pull-request` and `cokeSchlumpf/core--devops-workflows`.
+- [ ] **Actions → General → Workflow permissions:** *Allow GitHub Actions to create and approve pull requests*
   enabled. Otherwise release-please can't open the Release PR.
-- **Settings → Pages:** *Source* set to **GitHub Actions**.
-- **Settings → Rules → Rulesets:** a branch ruleset for `versions/*` with *Restrict deletions* and *Block force
-  pushes*.
-- **Settings → Secrets and variables → Actions:** `OPENAI_API_KEY` (optional, enables the LLM polish).
+- [ ] **Pages:** *Source* set to **GitHub Actions** (only with `python-docs.yml`). Otherwise the deploy job fails.
+- [ ] **Rules → Rulesets:** a branch ruleset for `versions/*` with *Restrict deletions* and *Block force pushes*. Don't
+  enable *Restrict updates*, the release workflow pushes to these branches with the `GITHUB_TOKEN`.
+- [ ] **Secrets and variables → Actions:** repository secret `OPENAI_API_KEY` (optional, enables the LLM polish of
+  the Release PR notes). Without it, the polish job is skipped.
+
+### Requirements for this repository
+
+- It must be **public**. For a private repository, other repositories can only call its workflows if *Settings →
+  Actions → General → Access* allows it, and only repositories owned by the same user or organization.
+- The `versions/<major>` branch that callers reference must exist. It is created by merging the Release PR of the
+  first release of that major version. Until then, calling workflows fail with *unable to find version*.
+- Its own Pages setting isn't needed, as it has no documentation site.
 
 ## Development
 
