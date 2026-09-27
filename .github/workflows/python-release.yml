@@ -1,0 +1,91 @@
+name: Python Release
+
+# Reusable workflow: runs release-please, moves `versions/<major>` to each new release and optionally polishes the
+# notes of the Release PR with an LLM. The caller must grant `contents`, `issues` and `pull-requests: write`.
+on:
+  workflow_call:
+    inputs:
+      config-file:
+        type: string
+        default: release-please-config.json
+      manifest-file:
+        type: string
+        default: .release-please-manifest.json
+      changelog-path:
+        type: string
+        default: CHANGELOG.md
+      openai-model:
+        description: OpenAI model used to polish the release notes.
+        type: string
+        default: gpt-5-mini
+    secrets:
+      OPENAI_API_KEY:
+        description: Optional. Enables polishing the release notes of the Release PR.
+        required: false
+    outputs:
+      release_created:
+        value: ${{ jobs.release.outputs.release_created }}
+      tag_name:
+        value: ${{ jobs.release.outputs.tag_name }}
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: write
+    env:
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+    outputs:
+      release_created: ${{ steps.release.outputs.release_created }}
+      tag_name: ${{ steps.release.outputs.tag_name }}
+    steps:
+      # Creates/updates the Release PR, or creates tag and GitHub Release once the Release PR is merged.
+      - id: release
+        uses: googleapis/release-please-action@v5
+        with:
+          config-file: ${{ inputs.config-file }}
+          manifest-file: ${{ inputs.manifest-file }}
+
+      # Moves versions/<major> to the new release. No force push: a non-fast-forward fails loudly.
+      - if: ${{ steps.release.outputs.release_created == 'true' }}
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Update major version branch
+        if: ${{ steps.release.outputs.release_created == 'true' }}
+        env:
+          SHA: ${{ steps.release.outputs.sha }}
+          MAJOR: ${{ steps.release.outputs.major }}
+        run: git push origin "${SHA}:refs/heads/versions/${MAJOR}"
+
+      # Optional: polish the release notes of the Release PR with an LLM. Never blocks a release.
+      # The `pr` output is only set when a Release PR was created or updated, so it's read here with jq instead of
+      # fromJSON() in expressions: step `env` is evaluated before `if`, and fromJSON('') fails the whole workflow.
+      - id: release-pr
+        name: Read Release PR
+        if: ${{ steps.release.outputs.prs_created == 'true' && env.OPENAI_API_KEY != '' }}
+        continue-on-error: true
+        env:
+          PR_JSON: ${{ steps.release.outputs.pr }}
+        run: |
+          echo "number=$(jq -r .number <<< "$PR_JSON")" >> "$GITHUB_OUTPUT"
+          echo "branch=$(jq -r .headBranchName <<< "$PR_JSON")" >> "$GITHUB_OUTPUT"
+
+      - if: ${{ steps.release-pr.outputs.branch != '' }}
+        continue-on-error: true
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ steps.release-pr.outputs.branch }}
+
+      # Keep the ref in sync with the major version of this repository.
+      - if: ${{ steps.release-pr.outputs.branch != '' }}
+        continue-on-error: true
+        uses: cokeSchlumpf/core--devops-workflows/.github/actions/polish-changelog@versions/1
+        with:
+          pr-number: ${{ steps.release-pr.outputs.number }}
+          openai-api-key: ${{ secrets.OPENAI_API_KEY }}
+          model: ${{ inputs.openai-model }}
+          changelog-path: ${{ inputs.changelog-path }}

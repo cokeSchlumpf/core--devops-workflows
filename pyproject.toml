@@ -1,0 +1,41 @@
+[project]
+name = "core-devops-workflows"
+version = "0.0.0"
+description = "Reusable GitHub Actions workflows for checks, documentation and releases of Python projects."
+authors = [
+    {name = "Michael Wellner", email = "michael.wellner@gmail.com"}
+]
+requires-python = ">=3.12, <4.0"
+
+[tool.poetry]
+package-mode = false
+
+[tool.poetry.group.dev.dependencies]
+mypy = "^2.3.1"
+openai = "^3.19.2"
+poethepoet = "^0.48.0"
+pytest = "^9.1.1"
+ruff = "^0.16.3"
+
+[tool.poe.tasks]
+check = [
+    { cmd = "ruff check .github/actions tests" },
+    { cmd = "ruff format --check .github/actions tests" },
+    { cmd = "mypy .github/actions/polish-changelog" },
+    { cmd = "pytest" },
+]
+fix = [
+    { cmd = "ruff check .github/actions tests --fix" },
+    { cmd = "ruff format .github/actions tests" },
+]
+
+[tool.pytest.ini_options]
+pythonpath = [".github/actions/polish-changelog"]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 120
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"

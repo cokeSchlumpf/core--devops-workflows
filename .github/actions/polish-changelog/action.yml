@@ -1,0 +1,53 @@
+name: Polish release notes
+description: >-
+  Adds a "Highlights" section to the release notes of an open release-please Release PR and rewords the entries with
+  an LLM, in both the changelog and the PR description. Must run in a checkout of the Release PR branch. Keeps the
+  generated notes unchanged if the API call fails or the output doesn't pass validation.
+
+inputs:
+  pr-number:
+    description: Number of the Release PR.
+    required: true
+  openai-api-key:
+    description: OpenAI API key.
+    required: true
+  model:
+    description: OpenAI model used for polishing.
+    default: gpt-5-mini
+  changelog-path:
+    description: Path of the changelog file in the repository.
+    default: CHANGELOG.md
+  github-token:
+    description: Token used to read and edit the Release PR and push the polished changelog.
+    default: ${{ github.token }}
+
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-python@v7
+      with:
+        python-version: "3.12"
+
+    - name: Polish release notes
+      shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.github-token }}
+        OPENAI_API_KEY: ${{ inputs.openai-api-key }}
+        OPENAI_MODEL: ${{ inputs.model }}
+        PR_NUMBER: ${{ inputs.pr-number }}
+        CHANGELOG: ${{ inputs.changelog-path }}
+      run: |
+        python -m pip install --quiet "openai>=2,<4"
+        gh pr view "$PR_NUMBER" --json body --jq .body > "$RUNNER_TEMP/body.md"
+        python "$GITHUB_ACTION_PATH/polish_changelog.py" --body "$RUNNER_TEMP/body.md" --changelog "$CHANGELOG"
+
+        if git diff --quiet -- "$CHANGELOG"; then
+          echo "Release notes unchanged."
+          exit 0
+        fi
+
+        git config user.name "github-actions[bot]"
+        git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+        git commit -m "chore: polish release notes" -- "$CHANGELOG"
+        git push
+        gh pr edit "$PR_NUMBER" --body-file "$RUNNER_TEMP/body.md"

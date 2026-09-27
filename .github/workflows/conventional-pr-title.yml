@@ -1,0 +1,36 @@
+name: Conventional PR Title
+
+# Reusable workflow: fails if the PR title isn't a conventional commit.
+# PRs are squash-merged, so the PR title becomes the commit message on main, which release-please derives versions and
+# the changelog from. The caller must grant `pull-requests: read`.
+on:
+  workflow_call:
+    inputs:
+      types:
+        description: Allowed commit types, one per line.
+        type: string
+        default: |
+          feat
+          fix
+          perf
+          deps
+          revert
+          docs
+          refactor
+          test
+          build
+          ci
+          chore
+          style
+
+jobs:
+  conventional-commit:
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: read
+    steps:
+      - uses: amannn/action-semantic-pull-request@v6
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          types: ${{ inputs.types }}

@@ -1,0 +1,14 @@
+name: Check
+
+on:
+  push:
+    branches:
+      - "feature/**"
+      - "fix/**"
+
+jobs:
+  check:
+    uses: ./.github/workflows/python-check.yml
+    with:
+      install-args: ""
+      docs: false
