@@ -2,6 +2,9 @@
 
 ## [1.0.1](https://github.com/cokeSchlumpf/core--devops-workflows/compare/v1.0.0...v1.0.1) (2026-09-27)
 
+### Highlights
+
+Documentation was updated to include additional repository setup instructions, making it easier for contributors and users to get the project configured.
 
 ### Documentation
 
