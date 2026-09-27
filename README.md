@@ -132,15 +132,18 @@ repository's GitHub **Settings**.
   `.release-please-manifest.json`, `CHANGELOG.md` and the caller workflows from [Usage](#usage).
 - [ ] **General → Pull Requests:** only *Allow squash merging* enabled, with *Default commit message* set to
   **Pull request title and description**. Otherwise single-commit PRs use the commit message instead of the PR title,
-  and `BREAKING CHANGE:` / `Release-As:` lines in the description don't reach `main`. Recommended: *Automatically delete
-  head branches*.
+  and `BREAKING CHANGE:` / `Release-As:` lines in the description don't reach `main`.
+- [ ] **General → Pull Requests:** *Automatically delete head branches* enabled (recommended). This also removes the
+  Release PR branch `release-please--branches--main--components--<package-name>` after each release; release-please
+  recreates it with the next change on `main`.
 - [ ] **Actions → General → Actions permissions:** if actions are restricted, allow `actions/*`,
   `googleapis/release-please-action`, `amannn/action-semantic-pull-request` and `cokeSchlumpf/core--devops-workflows`.
 - [ ] **Actions → General → Workflow permissions:** *Allow GitHub Actions to create and approve pull requests*
   enabled. Otherwise release-please can't open the Release PR.
 - [ ] **Pages:** *Source* set to **GitHub Actions** (only with `python-docs.yml`). Otherwise the deploy job fails.
 - [ ] **Rules → Rulesets:** a branch ruleset for `versions/*` with *Restrict deletions* and *Block force pushes*. Don't
-  enable *Restrict updates*, the release workflow pushes to these branches with the `GITHUB_TOKEN`.
+  enable *Restrict updates*, the release workflow pushes to these branches with the `GITHUB_TOKEN`. Don't apply *Block
+  force pushes* to all branches: release-please force-pushes its Release PR branch.
 - [ ] **Secrets and variables → Actions:** repository secret `OPENAI_API_KEY` (optional, enables the LLM polish of
   the Release PR notes). Without it, the polish job is skipped.
 
