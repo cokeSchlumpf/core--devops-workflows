@@ -30,9 +30,14 @@ jobs:
         run: pipx install poetry==${{ inputs.poetry-version }}
 
       - uses: actions/setup-python@v7
+        id: python
         with:
           python-version: ${{ inputs.python-version }}
           cache: poetry
+
+      # Poetry runs on the runner's system Python (pipx); without this, it creates the environment with that one.
+      - name: Use the requested Python
+        run: poetry env use "${{ steps.python.outputs.python-path }}"
 
       - name: Install dependencies
         run: poetry install ${{ inputs.install-args }}
