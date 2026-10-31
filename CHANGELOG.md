@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.2](https://github.com/cokeSchlumpf/core--devops-workflows/compare/v1.0.1...v1.0.2) (2026-10-31)
+
+
+### Bug Fixes
+
+* Use Poetry 2.5.1 by default, which supports Python 3.14 ([#5](https://github.com/cokeSchlumpf/core--devops-workflows/issues/5)) ([14a4278](https://github.com/cokeSchlumpf/core--devops-workflows/commit/14a4278b3497d296711ab64d4b2e54d5d20aafa1))
+
 ## [1.0.1](https://github.com/cokeSchlumpf/core--devops-workflows/compare/v1.0.0...v1.0.1) (2026-10-31)
 
 ### Highlights
