@@ -1,5 +1,19 @@
 # Changelog
 
+## [1.0.1](https://github.com/cokeSchlumpf/core--devops-workflows/compare/v1.0.0...v1.0.1) (2026-10-31)
+
+### Highlights
+
+Workflows now ensure Poetry uses the Python interpreter provided by actions/setup-python before creating the project environment, so projects that require a newer Python version no longer fail during poetry install. This does not change behavior for callers on the default 3.12.
+
+### Bug Fixes
+
+* Run Poetry with the interpreter provided by actions/setup-python before creating the virtual environment so Poetry uses the requested Python version and projects requiring a newer Python no longer fail during `poetry install`. ([#4](https://github.com/cokeSchlumpf/core--devops-workflows/issues/4)) ([9bd2ba8](https://github.com/cokeSchlumpf/core--devops-workflows/commit/9bd2ba8863dc422c5a60a6f6e70fc97d6f1c72c4))
+
+### Documentation
+
+* Added additional repository setup instructions. ([64ec9d5](https://github.com/cokeSchlumpf/core--devops-workflows/commit/64ec9d5f450109afcbb90b30b959974395a4adb2))
+
 ## 1.0.0 (2026-09-27)
 
 ### Highlights
