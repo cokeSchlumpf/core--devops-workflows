@@ -185,7 +185,7 @@ repository name) and an output `app_url`.
 
 | Workflow | Input | Default |
 | --- | --- | --- |
-| `python-check.yml` | `python-version`, `poetry-version` | `3.12`, `2.5.1` |
+| `python-check.yml` | `python-version`, `poetry-version` | `3.14`, `2.5.1` |
 | | `install-args` (for `poetry install`) | `--all-extras --with docs` |
 | | `docs` (also run `poe docs-build`) | `true` |
 | `python-docs.yml` | `python-version`, `poetry-version`, `install-args` | as above |

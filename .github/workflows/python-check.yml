@@ -7,7 +7,7 @@ on:
     inputs:
       python-version:
         type: string
-        default: "3.12"
+        default: "3.14"
       poetry-version:
         type: string
         default: "2.5.1"
