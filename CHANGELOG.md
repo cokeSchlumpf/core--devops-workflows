@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.2.0](https://github.com/cokeSchlumpf/core--devops-workflows/compare/v1.1.1...v1.2.0) (2026-11-01)
+
+
+### Features
+
+* default to Python 3.14 ([#11](https://github.com/cokeSchlumpf/core--devops-workflows/issues/11)) ([53842a0](https://github.com/cokeSchlumpf/core--devops-workflows/commit/53842a0521eb39046457975c50d2916324f69ac7))
+
 ## [1.1.1](https://github.com/cokeSchlumpf/core--devops-workflows/compare/v1.1.0...v1.1.1) (2026-11-01)
 
 ### Highlights
