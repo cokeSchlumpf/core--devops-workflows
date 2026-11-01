@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.1.1](https://github.com/cokeSchlumpf/core--devops-workflows/compare/v1.1.0...v1.1.1) (2026-11-01)
+
+
+### Bug Fixes
+
+* Reject polished notes that repeat the pull request descriptions ([#9](https://github.com/cokeSchlumpf/core--devops-workflows/issues/9)) ([0b57390](https://github.com/cokeSchlumpf/core--devops-workflows/commit/0b573907f0a74c6910003b9454c0e950b0003fe5))
+
 ## [1.1.0](https://github.com/cokeSchlumpf/core--devops-workflows/compare/v1.0.2...v1.1.0) (2026-11-01)
 
 
