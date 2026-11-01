@@ -2,6 +2,8 @@
 
 ## [1.1.1](https://github.com/cokeSchlumpf/core--devops-workflows/compare/v1.1.0...v1.1.1) (2026-11-01)
 
+### Highlights
+This release fixes a problem where polished release notes could include repeated pull request descriptions and extra top-level headings, which introduced invalid links and broke strict docs builds. validate() now rejects polished notes that contain a `#` or `##` heading after the version heading, leaving invalid notes unpolished.
 
 ### Bug Fixes
 
