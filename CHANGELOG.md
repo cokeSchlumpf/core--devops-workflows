@@ -4,10 +4,13 @@ All notable changes to these workflows are documented here. The newest release i
 
 ## [1.4.0](https://github.com/cokeSchlumpf/core--devops-workflows/compare/v1.3.0...v1.4.0) (2026-11-01)
 
+### Highlights
+
+A new reusable workflow checks TLS certificates for app custom domains and fails if a certificate is invalid or will expire within the configured threshold (default 30 days). Apps with custom domains can run it weekly so failed renewals produce GitHub notifications.
 
 ### Features
 
-* Add workflow app-certificate-check (T-007) ([#16](https://github.com/cokeSchlumpf/core--devops-workflows/issues/16)) ([d98f81d](https://github.com/cokeSchlumpf/core--devops-workflows/commit/d98f81daaab100d83c2751b6c279dc29d64a5504))
+* Add workflow app-certificate-check that reads host names from the output `custom_domains` of `deployment/<stage>` (module `sandbox_app`) and fails when a certificate is invalid (expired, wrong host name, untrusted) or expires in less than `min-days` (30) days; intended for weekly runs by apps with custom domains. ([#16](https://github.com/cokeSchlumpf/core--devops-workflows/issues/16)) ([d98f81d](https://github.com/cokeSchlumpf/core--devops-workflows/commit/d98f81daaab100d83c2751b6c279dc29d64a5504))
 
 ## [1.3.0](https://github.com/cokeSchlumpf/core--devops-workflows/compare/v1.2.0...v1.3.0) (2026-11-01)
 
