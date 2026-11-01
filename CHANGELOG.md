@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.1.0](https://github.com/cokeSchlumpf/core--devops-workflows/compare/v1.0.2...v1.1.0) (2026-11-01)
+
+
+### Features
+
+* deploy apps on release ([#7](https://github.com/cokeSchlumpf/core--devops-workflows/issues/7)) ([fce92a4](https://github.com/cokeSchlumpf/core--devops-workflows/commit/fce92a448605d66af567d4667f309fa53e0b95bb))
+
 ## [1.0.2](https://github.com/cokeSchlumpf/core--devops-workflows/compare/v1.0.1...v1.0.2) (2026-10-31)
 
 
