@@ -1,0 +1,48 @@
+name: Python App Destroy
+
+# Reusable workflow: removes the deployment of an app from one stage with `tofu destroy` of `deployment/<environment>`,
+# including a database or storage account of the deployment and their data. The images stay in the registry, so
+# `python-app-deploy.yml` can deploy any released version again without a build.
+#
+# Runs in the caller's GitHub environment `<environment>` like `python-app-deploy.yml` (same variables, same sign-in)
+# and never in parallel with a deployment to that stage. The caller must grant `contents: read` and `id-token: write`
+# and should only call it after an explicit confirmation.
+on:
+  workflow_call:
+    inputs:
+      environment:
+        description: GitHub environment and stage to remove the deployment from, e.g. uat.
+        type: string
+        required: true
+      deployment-dir:
+        description: OpenTofu root of the stage; defaults to deployment/<environment>.
+        type: string
+        default: ""
+
+jobs:
+  destroy:
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    concurrency:
+      group: deploy-${{ inputs.environment }}
+      cancel-in-progress: false
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      DEPLOYMENT_DIR: ${{ inputs.deployment-dir || format('deployment/{0}', inputs.environment) }}
+      ARM_USE_OIDC: "true"
+      ARM_CLIENT_ID: ${{ vars.AZURE_CLIENT_ID }}
+      ARM_TENANT_ID: ${{ vars.AZURE_TENANT_ID }}
+      ARM_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: opentofu/setup-opentofu@v1
+        with:
+          tofu_wrapper: false
+
+      - name: Destroy the deployment
+        run: |
+          tofu -chdir="$DEPLOYMENT_DIR" init -input=false
+          tofu -chdir="$DEPLOYMENT_DIR" destroy -input=false -auto-approve
