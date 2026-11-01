@@ -9,6 +9,7 @@ Reusable GitHub Actions workflows for checks, documentation and releases of Pyth
 | `python-docs.yml` | Builds the docs with `poe docs-build` and deploys them to GitHub Pages |
 | `python-release.yml` | Runs [release-please](https://github.com/googleapis/release-please), moves `versions/<major>` to each release (libraries) and optionally polishes the Release PR notes with an LLM |
 | `python-app-deploy.yml` | Deploys a released app version to one stage: builds and pushes its image if missing, applies `deployment/<stage>` with OpenTofu and waits for `/health` to report the version |
+| `python-app-destroy.yml` | Removes an app's deployment from one stage with `tofu destroy` of `deployment/<stage>` (data of its database or storage included); the images stay |
 | `conventional-pr-title.yml` | Fails if a PR title isn't a [Conventional Commit](https://www.conventionalcommits.org/) |
 | `.github/actions/polish-changelog` | Composite action used by `python-release.yml` for the LLM polish |
 
@@ -173,6 +174,42 @@ jobs:
       version: ${{ inputs.version }}
 ```
 
+```yaml
+# destroy.yml: removes the deployment from UAT, only by hand and after typing the repository name
+name: Destroy
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: Type the repository name to destroy its UAT deployment, including its data
+        required: true
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  confirm:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check the confirmation
+        env:
+          CONFIRM: ${{ inputs.confirm }}
+          REPOSITORY: ${{ github.event.repository.name }}
+        run: |
+          if [ "$CONFIRM" != "$REPOSITORY" ]; then
+            echo "::error::Type the repository name '$REPOSITORY' to destroy the deployment."
+            exit 1
+          fi
+
+  destroy:
+    needs: confirm
+    uses: cokeSchlumpf/core--devops-workflows/.github/workflows/python-app-destroy.yml@versions/1
+    with:
+      environment: uat
+```
+
 A further stage (e.g. `dev` on every push to `main`) is another caller with its own `environment` and a folder
 `deployment/<stage>/`; deployments to the same stage never run in parallel (`concurrency: deploy-<stage>`).
 
@@ -197,6 +234,8 @@ repository name) and an output `app_url`.
 | | secret `OPENAI_API_KEY` (optional, enables the LLM polish) | |
 | `python-app-deploy.yml` | `environment` (GitHub environment and stage), `version` (tag, e.g. `v1.2.0`) | required |
 | | `app-name` (image name, equal to `app_name` of the deployment) | repository name |
+| | `deployment-dir` (OpenTofu root) | `deployment/<environment>` |
+| `python-app-destroy.yml` | `environment` (GitHub environment and stage) | required |
 | | `deployment-dir` (OpenTofu root) | `deployment/<environment>` |
 | | environment variables `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID`, `ACR_NAME` | |
 | `conventional-pr-title.yml` | `types` (one per line) | `feat`, `fix`, `perf`, `deps`, `revert`, `docs`, `refactor`, `test`, `build`, `ci`, `chore`, `style` |
