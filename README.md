@@ -7,7 +7,8 @@ Reusable GitHub Actions workflows for checks, documentation and releases of Pyth
 | --- | --- |
 | `python-check.yml` | Installs the project, runs `poe check` and builds the docs with `poe docs-build` |
 | `python-docs.yml` | Builds the docs with `poe docs-build` and deploys them to GitHub Pages |
-| `python-release.yml` | Runs [release-please](https://github.com/googleapis/release-please), moves `versions/<major>` to each release and optionally polishes the Release PR notes with an LLM |
+| `python-release.yml` | Runs [release-please](https://github.com/googleapis/release-please), moves `versions/<major>` to each release (libraries) and optionally polishes the Release PR notes with an LLM |
+| `python-app-deploy.yml` | Deploys a released app version to one stage: builds and pushes its image if missing, applies `deployment/<stage>` with OpenTofu and waits for `/health` to report the version |
 | `conventional-pr-title.yml` | Fails if a PR title isn't a [Conventional Commit](https://www.conventionalcommits.org/) |
 | `.github/actions/polish-changelog` | Composite action used by `python-release.yml` for the LLM polish |
 
@@ -108,6 +109,78 @@ jobs:
     uses: cokeSchlumpf/core--devops-workflows/.github/workflows/conventional-pr-title.yml@versions/1
 ```
 
+### Apps
+
+Apps are released like libraries but without a version branch, and the release deploys: the release run calls
+`python-app-deploy.yml` in the same run, because a release created with the `GITHUB_TOKEN` triggers no other workflow.
+Their `check.yml` and `pr-title.yml` are the same as above (with `python-version: "3.14"` and `docs: false`).
+
+```yaml
+# release.yml
+name: Release
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+  issues: write
+  pull-requests: write
+  id-token: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    uses: cokeSchlumpf/core--devops-workflows/.github/workflows/python-release.yml@versions/1
+    secrets: inherit
+    with:
+      version-branch: false
+
+  deploy:
+    needs: release
+    if: ${{ needs.release.outputs.release_created == 'true' }}
+    uses: cokeSchlumpf/core--devops-workflows/.github/workflows/python-app-deploy.yml@versions/1
+    with:
+      environment: uat
+      version: ${{ needs.release.outputs.tag_name }}
+```
+
+```yaml
+# deploy.yml: redeploys an existing tag (after a failed deployment, or to roll back)
+name: Deploy
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Tag to deploy, e.g. v1.2.0
+        required: true
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  deploy:
+    uses: cokeSchlumpf/core--devops-workflows/.github/workflows/python-app-deploy.yml@versions/1
+    with:
+      environment: uat
+      version: ${{ inputs.version }}
+```
+
+A further stage (e.g. `dev` on every push to `main`) is another caller with its own `environment` and a folder
+`deployment/<stage>/`; deployments to the same stage never run in parallel (`concurrency: deploy-<stage>`).
+
+The app needs a `Dockerfile` with `ARG APP__VERSION`, a `GET /health` answering `{"version": "<version>"}`, and per
+stage an OpenTofu root `deployment/<stage>/` with an `azurerm` backend, a variable `image_tag` passed to `sandbox_app`
+of [core--terraform-modules](https://github.com/cokeSchlumpf/core--terraform-modules) (`app_name` equal to the
+repository name) and an output `app_url`.
+
 ### Inputs
 
 | Workflow | Input | Default |
@@ -120,7 +193,12 @@ jobs:
 | `python-release.yml` | `config-file`, `manifest-file` | `release-please-config.json`, `.release-please-manifest.json` |
 | | `changelog-path`, `openai-model` | `CHANGELOG.md`, `gpt-5-mini` |
 | | `workflows-ref` (ref of this repository to load the polish action from) | `versions/1` |
+| | `version-branch` (move `versions/<major>` to each release) | `true` |
 | | secret `OPENAI_API_KEY` (optional, enables the LLM polish) | |
+| `python-app-deploy.yml` | `environment` (GitHub environment and stage), `version` (tag, e.g. `v1.2.0`) | required |
+| | `app-name` (image name, equal to `app_name` of the deployment) | repository name |
+| | `deployment-dir` (OpenTofu root) | `deployment/<environment>` |
+| | environment variables `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID`, `ACR_NAME` | |
 | `conventional-pr-title.yml` | `types` (one per line) | `feat`, `fix`, `perf`, `deps`, `revert`, `docs`, `refactor`, `test`, `build`, `ci`, `chore`, `style` |
 
 ### Setting up a repository
@@ -144,6 +222,10 @@ repository's GitHub **Settings**.
 - [ ] **Rules → Rulesets:** a branch ruleset for `versions/*` with *Restrict deletions* and *Block force pushes*. Don't
   enable *Restrict updates*, the release workflow pushes to these branches with the `GITHUB_TOKEN`. Don't apply *Block
   force pushes* to all branches: release-please force-pushes its Release PR branch.
+- [ ] **Environments** (apps only): an environment per stage (e.g. `uat`) with the variables `AZURE_CLIENT_ID`,
+  `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID` and `ACR_NAME` (outputs of `10--sandbox`, no secrets); the repository must
+  be listed in `github_app_repositories` of `10--sandbox`, which allows exactly this environment to sign in to Azure.
+  Allow `azure/login` and `opentofu/setup-opentofu` if actions are restricted.
 - [ ] **Secrets and variables → Actions:** repository secret `OPENAI_API_KEY` (optional, enables the LLM polish of
   the Release PR notes). Without it, the polish job is skipped.
 
