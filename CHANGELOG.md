@@ -2,6 +2,18 @@
 
 All notable changes to these workflows are documented here. The newest release is at the top.
 
+## [1.3.0](https://github.com/cokeSchlumpf/core--devops-workflows/compare/v1.2.0...v1.3.0) (2026-11-01)
+
+
+### Features
+
+* destroy app deployments ([#15](https://github.com/cokeSchlumpf/core--devops-workflows/issues/15)) ([35d9140](https://github.com/cokeSchlumpf/core--devops-workflows/commit/35d91404f40b863b48a7743754fd74e8f8dd09b0))
+
+
+### Documentation
+
+* Move the changelog intro to the top ([#13](https://github.com/cokeSchlumpf/core--devops-workflows/issues/13)) ([78db931](https://github.com/cokeSchlumpf/core--devops-workflows/commit/78db93139f9d217283c26e234a7e105eb6d53a21))
+
 ## [1.2.0](https://github.com/cokeSchlumpf/core--devops-workflows/compare/v1.1.1...v1.2.0) (2026-11-01)
 
 ### Highlights
