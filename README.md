@@ -10,6 +10,7 @@ Reusable GitHub Actions workflows for checks, documentation and releases of Pyth
 | `python-release.yml` | Runs [release-please](https://github.com/googleapis/release-please), moves `versions/<major>` to each release (libraries) and optionally polishes the Release PR notes with an LLM |
 | `python-app-deploy.yml` | Deploys a released app version to one stage: builds and pushes its image if missing, applies `deployment/<stage>` with OpenTofu and waits for `/health` to report the version |
 | `python-app-destroy.yml` | Removes an app's deployment from one stage with `tofu destroy` of `deployment/<stage>` (data of its database or storage included); the images stay |
+| `app-certificate-check.yml` | Checks the TLS certificates of an app's custom domains in one stage (host names from the output `custom_domains` of `deployment/<stage>`); fails when one is invalid or expires within 30 days |
 | `conventional-pr-title.yml` | Fails if a PR title isn't a [Conventional Commit](https://www.conventionalcommits.org/) |
 | `.github/actions/polish-changelog` | Composite action used by `python-release.yml` for the LLM polish |
 
@@ -210,6 +211,29 @@ jobs:
       environment: uat
 ```
 
+`.github/workflows/certificate-check.yml`, only for apps with custom domains (`custom_domains` of `sandbox_app`): checks
+their certificates weekly; App Service renews them by itself, the check notices a renewal that failed. GitHub mails a
+failed scheduled run.
+
+```yaml
+name: Certificate Check
+
+on:
+  schedule:
+    - cron: "0 6 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  check:
+    uses: cokeSchlumpf/core--devops-workflows/.github/workflows/app-certificate-check.yml@versions/1
+    with:
+      environment: uat
+```
+
 A further stage (e.g. `dev` on every push to `main`) is another caller with its own `environment` and a folder
 `deployment/<stage>/`; deployments to the same stage never run in parallel (`concurrency: deploy-<stage>`).
 
@@ -238,6 +262,9 @@ repository name) and an output `app_url`.
 | `python-app-destroy.yml` | `environment` (GitHub environment and stage) | required |
 | | `deployment-dir` (OpenTofu root) | `deployment/<environment>` |
 | | environment variables `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID`, `ACR_NAME` | |
+| `app-certificate-check.yml` | `environment` (GitHub environment and stage) | required |
+| | `deployment-dir` (OpenTofu root) | `deployment/<environment>` |
+| | `min-days` (days a certificate must stay valid) | `30` |
 | `conventional-pr-title.yml` | `types` (one per line) | `feat`, `fix`, `perf`, `deps`, `revert`, `docs`, `refactor`, `test`, `build`, `ci`, `chore`, `style` |
 
 ### Setting up a repository
