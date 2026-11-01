@@ -1,0 +1,112 @@
+name: Python App Deploy
+
+# Reusable workflow: deploys a released version of an app to one stage. Builds and pushes the image `<app>:<version>`
+# only if the registry doesn't have it yet, applies `deployment/<environment>` with OpenTofu and waits until the app's
+# `/health` reports the version.
+#
+# The job runs in the caller's GitHub environment `<environment>` and signs in to Azure with OpenID Connect; that
+# environment holds the variables AZURE_CLIENT_ID, AZURE_TENANT_ID, AZURE_SUBSCRIPTION_ID and ACR_NAME, no secrets.
+# The caller must grant `contents: read` and `id-token: write`. The deployment folder must output `app_url` and pass
+# its variable `image_tag` to `sandbox_app` (or an equivalent module) with `app_name` equal to `app-name`.
+on:
+  workflow_call:
+    inputs:
+      environment:
+        description: GitHub environment and stage to deploy to, e.g. uat.
+        type: string
+        required: true
+      version:
+        description: Tag to deploy, e.g. v1.2.0; the image and APP__VERSION get the version without the `v`.
+        type: string
+        required: true
+      app-name:
+        description: Name of the image in the registry; must equal `app_name` of the deployment.
+        type: string
+        default: ${{ github.event.repository.name }}
+      deployment-dir:
+        description: OpenTofu root of the stage; defaults to deployment/<environment>.
+        type: string
+        default: ""
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    # Never two deployments to the same stage at once; a waiting one runs after the running one.
+    concurrency:
+      group: deploy-${{ inputs.environment }}
+      cancel-in-progress: false
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      TAG: ${{ inputs.version }}
+      APP: ${{ inputs.app-name }}
+      ACR: ${{ vars.ACR_NAME }}
+      DEPLOYMENT_DIR: ${{ inputs.deployment-dir || format('deployment/{0}', inputs.environment) }}
+      ARM_USE_OIDC: "true"
+      ARM_CLIENT_ID: ${{ vars.AZURE_CLIENT_ID }}
+      ARM_TENANT_ID: ${{ vars.AZURE_TENANT_ID }}
+      ARM_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+    steps:
+      - name: Check version
+        id: version
+        run: |
+          if [[ ! "$TAG" =~ ^v?[0-9]+\.[0-9]+\.[0-9]+([-+][0-9A-Za-z.-]+)?$ ]]; then
+            echo "::error::'$TAG' is not a release tag like v1.2.0"
+            exit 1
+          fi
+          echo "version=${TAG#v}" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.version }}
+
+      - uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      # An existing image is never built again, so a redeploy or rollback runs exactly the released image.
+      - name: Build and push the image if missing
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          if az acr repository show --name "$ACR" --image "$APP:$VERSION" > /dev/null 2>&1; then
+            echo "$APP:$VERSION is in $ACR already, not building it."
+            exit 0
+          fi
+          az acr login --name "$ACR"
+          IMAGE="$ACR.azurecr.io/$APP:$VERSION"
+          docker build --platform linux/amd64 --build-arg "APP__VERSION=$VERSION" -t "$IMAGE" .
+          docker push "$IMAGE"
+
+      - uses: opentofu/setup-opentofu@v1
+        with:
+          tofu_wrapper: false
+
+      - name: Apply the deployment
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          tofu -chdir="$DEPLOYMENT_DIR" init -input=false
+          tofu -chdir="$DEPLOYMENT_DIR" apply -input=false -auto-approve -var "image_tag=$VERSION"
+
+      # App Service pulls the new image asynchronously; wait up to its container start limit (600 s).
+      - name: Wait for the new version
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          URL="$(tofu -chdir="$DEPLOYMENT_DIR" output -raw app_url)/health"
+          for _ in $(seq 1 60); do
+            DEPLOYED=$(curl -fsS --max-time 10 "$URL" | jq -r .version 2>/dev/null || true)
+            if [ "$DEPLOYED" = "$VERSION" ]; then
+              echo "$URL reports $VERSION."
+              exit 0
+            fi
+            echo "Waiting: $URL reports '${DEPLOYED}'."
+            sleep 10
+          done
+          echo "::error::$URL didn't report $VERSION within 600 seconds"
+          exit 1

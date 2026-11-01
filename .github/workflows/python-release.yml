@@ -1,7 +1,7 @@
 name: Python Release
 
-# Reusable workflow: runs release-please, moves `versions/<major>` to each new release and optionally polishes the
-# notes of the Release PR with an LLM. The caller must grant `contents`, `issues` and `pull-requests: write`.
+# Reusable workflow: runs release-please, moves `versions/<major>` to each new release (unless `version-branch` is
+# false, e.g. for apps) and optionally polishes the notes of the Release PR with an LLM. The caller must grant `contents`, `issues` and `pull-requests: write`.
 #
 # The polish action is checked out from this repository at `workflows-ref` and used via a local path. Local actions are
 # resolved when the step runs, while `owner/repo@ref` actions are resolved when the job starts, even for skipped steps.
@@ -26,6 +26,10 @@ on:
         description: Ref of cokeSchlumpf/core--devops-workflows to load the polish action from.
         type: string
         default: versions/1
+      version-branch:
+        description: Move `versions/<major>` to each release; apps, which nobody depends on by branch, set it to false.
+        type: boolean
+        default: true
     secrets:
       OPENAI_API_KEY:
         description: Optional. Enables polishing the release notes of the Release PR.
@@ -59,13 +63,13 @@ jobs:
           manifest-file: ${{ inputs.manifest-file }}
 
       # Moves versions/<major> to the new release. No force push: a non-fast-forward fails loudly.
-      - if: ${{ steps.release.outputs.release_created == 'true' }}
+      - if: ${{ steps.release.outputs.release_created == 'true' && inputs.version-branch }}
         uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
       - name: Update major version branch
-        if: ${{ steps.release.outputs.release_created == 'true' }}
+        if: ${{ steps.release.outputs.release_created == 'true' && inputs.version-branch }}
         env:
           SHA: ${{ steps.release.outputs.sha }}
           MAJOR: ${{ steps.release.outputs.major }}
