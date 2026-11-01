@@ -49,6 +49,7 @@ Rules:
   keep every Markdown link and commit hash exactly as it is, at the end of the entry.
 - Only use facts from the notes and the pull request descriptions. Do not invent anything.
 - Never write a line that consists only of "{NOTES_DELIMITER}".
+- Never repeat the pull request descriptions, and add no other "#" or "##" headings.
 """
 
 
@@ -94,6 +95,10 @@ def validate(original: str, polished: str) -> list[str]:
 
     if NOTES_DELIMITER in polished_lines:
         problems.append(f"contains a {NOTES_DELIMITER!r} line")
+
+    extra_headings = [line for line in polished_lines[1:] if re.match(r"#{1,2} ", line)]
+    if extra_headings:
+        problems.append(f"extra headings, e.g. the pull request context: {extra_headings}")
 
     if HIGHLIGHTS_HEADING not in polished_lines:
         problems.append(f"missing {HIGHLIGHTS_HEADING!r} section")

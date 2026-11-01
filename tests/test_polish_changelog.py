@@ -89,6 +89,11 @@ class TestValidate:
     def test_rejects_too_long_output(self) -> None:
         assert validate(NOTES, POLISHED + "x" * 10_000)
 
+    def test_rejects_repeated_pull_request_context(self) -> None:
+        echoed = POLISHED + "\n\n# Pull requests\n\n## #12: feat: add tree rendering\n\nSee [spec](changes/spec.md).\n"
+
+        assert validate(NOTES, echoed)
+
 
 class TestPolish:
     def test_returns_polished_notes(self) -> None:
@@ -96,6 +101,11 @@ class TestPolish:
 
     def test_keeps_original_on_api_error(self) -> None:
         assert polish(NOTES, "", failing_llm) == NOTES
+
+    def test_keeps_original_when_the_answer_repeats_the_context(self) -> None:
+        answer = POLISHED + "\n\n# Pull requests\n\n## #12: feat: add tree rendering\n\nDetails.\n"
+
+        assert polish(NOTES, "## #12: feat: add tree rendering\n\nDetails.", fake_llm(answer)) == NOTES
 
     def test_keeps_original_on_invalid_output(self) -> None:
         assert polish(NOTES, "", fake_llm("Something completely different")) == NOTES
