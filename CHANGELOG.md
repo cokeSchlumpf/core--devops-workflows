@@ -1,5 +1,7 @@
 # Changelog
 
+All notable changes to these workflows are documented here. The newest release is at the top.
+
 ## [1.2.0](https://github.com/cokeSchlumpf/core--devops-workflows/compare/v1.1.1...v1.2.0) (2026-11-01)
 
 ### Highlights
@@ -56,7 +58,3 @@ This release fixes a runtime resolution issue with the "polish" action so the pr
 ### Bug Fixes
 
 * Resolve polish action at runtime so the first release can run ([#1](https://github.com/cokeSchlumpf/core--devops-workflows/issues/1)) ([c824a40](https://github.com/cokeSchlumpf/core--devops-workflows/commit/c824a402b346f6ac9e0945d68ea915effd2d1b11))
-
-## Changelog
-
-All notable changes to these workflows are documented here. The newest release is at the top.
