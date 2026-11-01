@@ -1,0 +1,87 @@
+name: App Certificate Check
+
+# Reusable workflow: checks the TLS certificates of the custom domains of an app in one stage. It reads the host names
+# from the output `custom_domains` of `deployment/<environment>` (module `sandbox_app`) and fails when a certificate
+# is invalid, doesn't match its host name or expires in less than `min-days` days. App Service renews managed
+# certificates by itself; this check notices a renewal that failed (e.g. a DNS record removed at the registrar).
+#
+# Runs in the caller's GitHub environment `<environment>` like `python-app-deploy.yml` (same variables, same sign-in,
+# reading the state only). The caller must grant `contents: read` and `id-token: write`; it is meant to run on a
+# schedule, so that GitHub mails a failed run.
+on:
+  workflow_call:
+    inputs:
+      environment:
+        description: GitHub environment and stage whose custom domains are checked, e.g. uat.
+        type: string
+        required: true
+      deployment-dir:
+        description: OpenTofu root of the stage; defaults to deployment/<environment>.
+        type: string
+        default: ""
+      min-days:
+        description: Days a certificate must stay valid at least.
+        type: number
+        default: 30
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      DEPLOYMENT_DIR: ${{ inputs.deployment-dir || format('deployment/{0}', inputs.environment) }}
+      MIN_DAYS: ${{ inputs.min-days }}
+      ARM_USE_OIDC: "true"
+      ARM_CLIENT_ID: ${{ vars.AZURE_CLIENT_ID }}
+      ARM_TENANT_ID: ${{ vars.AZURE_TENANT_ID }}
+      ARM_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: opentofu/setup-opentofu@v1
+        with:
+          tofu_wrapper: false
+
+      - name: Read the custom domains
+        id: domains
+        run: |
+          tofu -chdir="$DEPLOYMENT_DIR" init -input=false > /dev/null
+          HOSTS=$(tofu -chdir="$DEPLOYMENT_DIR" output -json | jq -r '.custom_domains.value[]?')
+          if [ -z "$HOSTS" ]; then
+            echo "::notice::The deployment in $DEPLOYMENT_DIR has no custom domains; nothing to check."
+          fi
+          {
+            echo "hosts<<EOF"
+            echo "$HOSTS"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Check the certificates
+        if: steps.domains.outputs.hosts != ''
+        env:
+          HOSTS: ${{ steps.domains.outputs.hosts }}
+        shell: bash
+        run: |
+          # HOSTS: host names, one per line; MIN_DAYS: days a certificate must stay valid
+          failed=0
+          for host in $HOSTS; do
+            if ! chain=$(openssl s_client -connect "$host:443" -servername "$host" -verify_hostname "$host" \
+                -verify_return_error < /dev/null 2>&1); then
+              echo "::error::$host: no valid certificate for this host name ($(grep -m1 -E 'verify error|error' <<< "$chain" || echo 'connection failed'))"
+              failed=1
+              continue
+            fi
+            cert=$(openssl x509 <<< "$chain")
+            expiry=$(openssl x509 -noout -enddate <<< "$cert" | cut -d= -f2)
+            issuer=$(openssl x509 -noout -issuer <<< "$cert" | sed 's/^issuer=//')
+            if ! openssl x509 -noout -checkend $((MIN_DAYS * 86400)) <<< "$cert" > /dev/null; then
+              echo "::error::$host: certificate expires $expiry, in less than $MIN_DAYS days (issuer: $issuer)"
+              failed=1
+              continue
+            fi
+            echo "$host: valid until $expiry (issuer: $issuer)"
+          done
+          exit $failed
