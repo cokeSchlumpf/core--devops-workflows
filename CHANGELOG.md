@@ -4,6 +4,9 @@ All notable changes to these workflows are documented here. The newest release i
 
 ## [1.5.0](https://github.com/cokeSchlumpf/core--devops-workflows/compare/v1.4.0...v1.5.0) (2026-11-09)
 
+### Highlights
+
+The reusable workflow Python Check can now install dependencies from private repositories by providing a list of private repositories and a read-only deploy key via the GIT_SSH_KEY secret. Callers that don't supply these inputs behave as before; the first caller to use this is lib--casesight--pipeline, which depends on the private lib--casesight--data-model.
 
 ### Features
 
