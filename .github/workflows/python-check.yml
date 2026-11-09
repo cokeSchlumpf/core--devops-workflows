@@ -20,12 +20,15 @@ on:
         type: boolean
         default: true
       private-repositories:
-        description: Private GitHub repositories (owner/name, separated by spaces) that dependencies are installed from, with the deploy key in the secret `GIT_SSH_KEY`.
+        description: Private GitHub repositories (owner/name, separated by spaces) that dependencies are installed from, with the deploy key in the secret `GIT_SSH_KEY`, or for several repositories one per repository in `GIT_SSH_KEYS`.
         type: string
         default: ""
     secrets:
       GIT_SSH_KEY:
-        description: A read-only deploy key of the repositories in `private-repositories`.
+        description: A read-only deploy key of the repository in `private-repositories`.
+        required: false
+      GIT_SSH_KEYS:
+        description: Read-only deploy keys, as a JSON object from owner/name to the private key, as a deploy key serves one repository.
         required: false
 
 jobs:
@@ -46,14 +49,23 @@ jobs:
         if: ${{ inputs.private-repositories != '' }}
         env:
           GIT_SSH_KEY: ${{ secrets.GIT_SSH_KEY }}
+          GIT_SSH_KEYS: ${{ secrets.GIT_SSH_KEYS }}
           REPOSITORIES: ${{ inputs.private-repositories }}
         run: |
           mkdir -p ~/.ssh
-          printf '%s\n' "$GIT_SSH_KEY" > ~/.ssh/id_ed25519
-          chmod 600 ~/.ssh/id_ed25519
           ssh-keyscan -t ed25519 github.com >> ~/.ssh/known_hosts
+          index=0
           for repository in $REPOSITORIES; do
-            git config --global url."git@github.com:${repository}.git".insteadOf "https://github.com/${repository}.git"
+            index=$((index + 1))
+            if [ -n "$GIT_SSH_KEYS" ]; then
+              key="$(jq -r --arg repository "$repository" '.[$repository] // empty' <<< "$GIT_SSH_KEYS")"
+            else
+              key="$GIT_SSH_KEY"
+            fi
+            printf '%s\n' "$key" > ~/.ssh/key_$index
+            chmod 600 ~/.ssh/key_$index
+            printf 'Host github-%s\n  HostName github.com\n  User git\n  IdentityFile ~/.ssh/key_%s\n  IdentitiesOnly yes\n' "$index" "$index" >> ~/.ssh/config
+            git config --global url."git@github-${index}:${repository}.git".insteadOf "https://github.com/${repository}.git"
           done
           echo "POETRY_SYSTEM_GIT_CLIENT=true" >> "$GITHUB_ENV"
 
