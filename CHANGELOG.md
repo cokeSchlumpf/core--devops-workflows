@@ -2,6 +2,13 @@
 
 All notable changes to these workflows are documented here. The newest release is at the top.
 
+## [1.5.0](https://github.com/cokeSchlumpf/core--devops-workflows/compare/v1.4.0...v1.5.0) (2026-11-09)
+
+
+### Features
+
+* install private dependencies in Python Check ([#18](https://github.com/cokeSchlumpf/core--devops-workflows/issues/18)) ([db8cb30](https://github.com/cokeSchlumpf/core--devops-workflows/commit/db8cb30d7b99fd8674906661c96c1234b2f31472))
+
 ## [1.4.0](https://github.com/cokeSchlumpf/core--devops-workflows/compare/v1.3.0...v1.4.0) (2026-11-01)
 
 ### Highlights
