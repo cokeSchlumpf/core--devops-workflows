@@ -248,6 +248,7 @@ repository name) and an output `app_url`.
 | --- | --- | --- |
 | `python-check.yml` | `python-version`, `poetry-version` | `3.14`, `2.5.1` |
 | | `install-args` (for `poetry install`) | `--all-extras --with docs` |
+| | `private-repositories` (owner/name, separated by spaces; needs the secret `GIT_SSH_KEY`, or `GIT_SSH_KEYS` for several repositories: read-only deploy keys, as JSON from owner/name to key) | empty |
 | | `docs` (also run `poe docs-build`) | `true` |
 | `python-docs.yml` | `python-version`, `poetry-version`, `install-args` | as above |
 | | `site-dir` | `site` |
