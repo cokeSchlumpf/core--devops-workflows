@@ -2,6 +2,13 @@
 
 All notable changes to these workflows are documented here. The newest release is at the top.
 
+## [1.6.0](https://github.com/cokeSchlumpf/core--devops-workflows/compare/v1.5.0...v1.6.0) (2026-11-09)
+
+
+### Features
+
+* support several deploy keys in Python Check ([#20](https://github.com/cokeSchlumpf/core--devops-workflows/issues/20)) ([c4f3026](https://github.com/cokeSchlumpf/core--devops-workflows/commit/c4f30264e204ff798642918de4c046982cefae43))
+
 ## [1.5.0](https://github.com/cokeSchlumpf/core--devops-workflows/compare/v1.4.0...v1.5.0) (2026-11-09)
 
 ### Highlights
