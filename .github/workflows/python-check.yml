@@ -19,6 +19,14 @@ on:
         description: Also build the documentation with `poe docs-build`.
         type: boolean
         default: true
+      private-repositories:
+        description: Private GitHub repositories (owner/name, separated by spaces) that dependencies are installed from, with the deploy key in the secret `GIT_SSH_KEY`.
+        type: string
+        default: ""
+    secrets:
+      GIT_SSH_KEY:
+        description: A read-only deploy key of the repositories in `private-repositories`.
+        required: false
 
 jobs:
   check:
@@ -33,6 +41,21 @@ jobs:
         with:
           python-version: ${{ inputs.python-version }}
           cache: poetry
+
+      - name: Set up access to private dependencies
+        if: ${{ inputs.private-repositories != '' }}
+        env:
+          GIT_SSH_KEY: ${{ secrets.GIT_SSH_KEY }}
+          REPOSITORIES: ${{ inputs.private-repositories }}
+        run: |
+          mkdir -p ~/.ssh
+          printf '%s\n' "$GIT_SSH_KEY" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan -t ed25519 github.com >> ~/.ssh/known_hosts
+          for repository in $REPOSITORIES; do
+            git config --global url."git@github.com:${repository}.git".insteadOf "https://github.com/${repository}.git"
+          done
+          echo "POETRY_SYSTEM_GIT_CLIENT=true" >> "$GITHUB_ENV"
 
       - name: Install dependencies
         run: poetry install ${{ inputs.install-args }}
